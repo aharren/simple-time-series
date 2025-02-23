@@ -31,9 +31,12 @@ $defs:
             items:
               type: number
             x-constraint: .length == 1+(tse-tss)/tsd
+    patternProperties:
+      '^x-': {}
     required:
       - typ
       - tss
       - tse
       - tsd
       - val
+    unevaluatedProperties: false
