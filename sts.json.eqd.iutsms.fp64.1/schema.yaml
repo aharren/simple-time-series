@@ -1,0 +1,39 @@
+$id: "https://raw.githubusercontent.com/aharren/simple-time-series/main/sts.json.eqd.iutsms.fp64.1/schema.yaml"
+$schema: "https://json-schema.org/draft/2020-12/schema"
+
+$ref: "#/$defs/document"
+
+$defs:
+  document:
+    type: object
+    properties:
+      typ:
+        type: string
+        pattern: "^(sts\\.json\\.eqd\\.iutsms\\.fp64\\.1)$"
+      tss:
+        type: string
+        format: "iso-date-time"
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}Z$"
+        x-constraint: .value <= tse.value
+      tse:
+        type: string
+        format: "iso-date-time"
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}Z$"
+        x-constraint: .value >= tss.value
+      tsd:
+        type: integer
+        minimum: 1
+      val:
+        type: object
+        patternProperties:
+          "^.*$":
+            type: array
+            items:
+              type: number
+            x-constraint: .length == 1+(tse-tss)/tsd
+    required:
+      - typ
+      - tss
+      - tse
+      - tsd
+      - val
