@@ -1,0 +1,98 @@
+#!/usr/bin/env node
+
+'use strict';
+
+import fs from 'node:fs/promises';
+import yaml from 'yaml';
+import Ajv from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
+const ajv = new Ajv({ allErrors: true, verbose: true });
+addFormats(ajv);
+import { AggregateAjvError } from '@segment/ajv-human-errors';
+
+process.exitCode = 1;
+
+async function main() {
+  const argFilename = process.argv[2] || '';
+  if (argFilename === '') {
+    console.log('usage: validate <simple-time-series-file>');
+    return;
+  }
+
+  const document = JSON.parse(await fs.readFile(argFilename, 'UTF-8'));
+  const typ = document.typ || '';
+  switch (typ) {
+    case 'sts.json.eqd.iutsms.fp64.1':
+      break;
+    default:
+      console.log('error: unknown type');
+      return;
+  }
+
+  ajv.addKeyword({
+    keyword: 'x-constraint',
+    validate: (value, data, parent, meta) => {
+      const constraint = value.split(' ');
+      if (constraint.length !== 3) {
+        return false;
+      }
+      const rhs = (() => {
+        switch (constraint[2]) {
+          case 'tss.value':
+            return new Date(meta.rootData.tss);
+          case 'tse.value':
+            return new Date(meta.rootData.tse);
+          case '1+(tse-tss)/tsd': {
+            const tss = new Date(meta.rootData.tss).getTime();
+            const tse = new Date(meta.rootData.tse).getTime();
+            const tsd = parseFloat(meta.rootData.tsd);
+            const distance = tse - tss;
+            const count = 1 + Math.floor(distance / tsd);
+            return count;
+          }
+          default:
+            return null;
+        }
+      })();
+      const lhs = (() => {
+        switch (constraint[0]) {
+          case '.value':
+            if (rhs instanceof Date) {
+              return new Date(data);
+            }
+            return data;
+          case '.length':
+            return data.length;
+          default:
+            return null;
+        }
+      })();
+      const op = constraint[1];
+      switch (op) {
+        case '==':
+          return lhs == rhs;
+        case '<=':
+          return lhs <= rhs;
+        case '>=':
+          return lhs >= rhs;
+        default:
+          return false;
+      }
+    },
+    errors: false,
+  });
+
+  const ajvValidate = ajv.compile(yaml.parse(await fs.readFile(`${import.meta.dirname}/../${typ}/schema.yaml`, 'UTF-8')));
+  const ajvResult = ajvValidate(document);
+  if (ajvResult === true) {
+    process.exitCode = 0;
+    return;
+  } else {
+    const errors = new AggregateAjvError(ajvValidate.errors, { includeOriginalError: true });
+    for (const error of errors) {
+      console.error(`error: ${error.message}`);
+    }
+  }
+}
+
+await main();

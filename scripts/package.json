@@ -1,0 +1,9 @@
+{
+  "type": "module",
+  "dependencies": {
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1",
+    "@segment/ajv-human-errors": "2.14.1",
+    "yaml": "2.7.0"
+  }
+}
